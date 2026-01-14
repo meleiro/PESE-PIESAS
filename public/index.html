@@ -210,7 +210,7 @@
         render(items);
         setStatus(`Total: ${items.length} componente(s).`);
       } catch (err) {
-        setStatus(`❌ ${err.message}`);
+        setStatus(`${err.message}`);
         tbody.innerHTML = "";
       }
     }
