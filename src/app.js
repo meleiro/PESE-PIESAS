@@ -27,7 +27,7 @@ const express = require("express");
 // Importamos el pool de conexión a PostgreSQL
 // Normalmente creado con la librería 'pg'
 // Este pool gestiona las conexiones a la base de datos
-const pool = require("./db");
+const repo = require("./repository");
 
 // Importamos el módulo 'path' de Node
 // Sirve para construir rutas del sistema de forma segura
@@ -81,12 +81,8 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 // -----------------------------------------------------
 app.get("/componentes", async (req, res) => {
   try {
-    // Consulta SQL para obtener todos los componentes
-    // ordenados por id ascendente
-    const result = await pool.query(
-      "SELECT * FROM componentes ORDER BY id ASC"
-    );
-
+    
+    const result = await repo.getAll();
     // result.rows contiene el array de filas
     res.json(result.rows);
 

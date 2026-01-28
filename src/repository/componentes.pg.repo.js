@@ -6,7 +6,7 @@ module.exports = {
 
     async getAll() {
         const result = await pool.query(
-            "SELECT * FROM componentes ORDER BY id ASC"
+            `SELECT * FROM ${TABLE} ORDER BY id ASC`
         );
         return result;
     },
