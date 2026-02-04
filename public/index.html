@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CRUD Componentes</title>
+  <style>
+    :root { font-family: system-ui, Arial, sans-serif; }
+    body { margin: 24px; background: #fafafa; color: #111; }
+    h1 { margin: 0 0 16px; }
+    .wrap { display: grid; grid-template-columns: 380px 1fr; gap: 18px; align-items: start; }
+    .card { background: white; border: 1px solid #e7e7e7; border-radius: 12px; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.03); }
+    label { display: block; font-size: 12px; margin: 10px 0 6px; color: #444; }
+    input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .btns { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    button { border: 0; border-radius: 10px; padding: 10px 12px; cursor: pointer; font-weight: 600; }
+    button.primary { background: #2563eb; color: white; }
+    button.secondary { background: #e5e7eb; color: #111; }
+    button.danger { background: #ef4444; color: white; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; vertical-align: middle; }
+    th { font-size: 12px; color: #444; text-transform: uppercase; letter-spacing: .03em; }
+    tr:hover td { background: #fcfcfc; }
+    .actions { display: flex; gap: 8px; }
+    .pill { display: inline-block; font-size: 12px; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 999px; background: #f9fafb; }
+    .topbar { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .status { font-size: 13px; color: #333; }
+    .muted { color: #666; font-size: 13px; }
+    .note { margin-top: 10px; font-size: 12px; color: #666; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 6px; }
+    @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  </style>
+</head>
+
+<body>
+  <h1>CRUD de Componentes</h1>
+  <p class="muted">Conectado a la API REST <code>/componentes</code> (Node.js + Express + PostgreSQL).</p>
+
+  <div class="wrap">
+    <!-- FORM -->
+    <section class="card">
+      <div class="topbar">
+        <strong id="formTitle">Nuevo componente</strong>
+        <span class="pill" id="modePill">Modo: Crear</span>
+      </div>
+
+      <form id="form">
+        <!-- id oculto para modo edición -->
+        <input type="hidden" id="id" />
+
+        <label>Nombre *</label>
+        <input id="nombre" placeholder="Ej: Ryzen 5 5600" required />
+
+        <label>Tipo *</label>
+        <input id="tipo" placeholder="Ej: CPU / GPU / RAM / SSD" required />
+
+        <label>Marca</label>
+        <input id="marca" placeholder="Ej: AMD / NVIDIA / Samsung" />
+
+        <div class="row">
+          <div>
+            <label>Precio</label>
+            <input id="precio" type="number" step="0.01" min="0" placeholder="0.00" />
+          </div>
+          <div>
+            <label>Stock</label>
+            <input id="stock" type="number" step="1" min="0" placeholder="0" />
+          </div>
+        </div>
+
+        <div class="btns">
+          <button class="primary" type="submit" id="btnGuardar">Guardar</button>
+          <button class="secondary" type="button" id="btnLimpiar">Limpiar</button>
+          <button class="danger" type="button" id="btnEliminar" disabled>Eliminar</button>
+        </div>
+      </form>
+
+      <div class="note">
+        Tip: pulsa <strong>Editar</strong> en un registro para cargarlo en el formulario.
+      </div>
+    </section>
+
+    <!-- LISTADO -->
+    <section class="card">
+      <div class="topbar">
+        <strong>Listado</strong>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="secondary" type="button" id="btnRefrescar">Refrescar</button>
+        </div>
+      </div>
+
+      <div class="status" id="status">Cargando...</div>
+
+      <div style="overflow:auto; margin-top: 10px;">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Marca</th>
+              <th>Precio</th>
+              <th>Stock</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Cambia aquí si tu API usa otro puerto/host
+    const API_BASE = "http://localhost:3000";
+    const API = `${API_BASE}/componentes`;
+
+    const $ = (sel) => document.querySelector(sel);
+
+    const form = $("#form");
+    const tbody = $("#tbody");
+    const statusEl = $("#status");
+
+    const formTitle = $("#formTitle");
+    const modePill = $("#modePill");
+
+    const idEl = $("#id");
+    const nombreEl = $("#nombre");
+    const tipoEl = $("#tipo");
+    const marcaEl = $("#marca");
+    const precioEl = $("#precio");
+    const stockEl = $("#stock");
+
+    const btnGuardar = $("#btnGuardar");
+    const btnLimpiar = $("#btnLimpiar");
+    const btnEliminar = $("#btnEliminar");
+    const btnRefrescar = $("#btnRefrescar");
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    function setModeCrear() {
+      formTitle.textContent = "Nuevo componente";
+      modePill.textContent = "Modo: Crear";
+      btnEliminar.disabled = true;
+      idEl.value = "";
+    }
+
+    function setModeEditar() {
+      formTitle.textContent = "Editar componente";
+      modePill.textContent = "Modo: Editar";
+      btnEliminar.disabled = false;
+    }
+
+    function limpiarFormulario() {
+      idEl.value = "";
+      nombreEl.value = "";
+      tipoEl.value = "";
+      marcaEl.value = "";
+      precioEl.value = "";
+      stockEl.value = "";
+      setModeCrear();
+      nombreEl.focus();
+    }
+
+    function cargarEnFormulario(item) {
+      idEl.value = item.id;
+      nombreEl.value = item.nombre ?? "";
+      tipoEl.value = item.tipo ?? "";
+      marcaEl.value = item.marca ?? "";
+      precioEl.value = item.precio ?? 0;
+      stockEl.value = item.stock ?? 0;
+      setModeEditar();
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">"," &gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function apiFetch(url, options = {}) {
+      const res = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options
+      });
+
+      // 204 no content
+      if (res.status === 204) return null;
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = data?.error ? `${data.error}${data.detalle ? " - " + data.detalle : ""}` : `Error HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    async function listar() {
+      try {
+        setStatus("Cargando datos...");
+        const items = await apiFetch(API);
+        render(items);
+        setStatus(`Total: ${items.length} componente(s).`);
+      } catch (err) {
+        setStatus(`${err.message}`);
+        tbody.innerHTML = "";
+      }
+    }
+
+    function render(items) {
+      tbody.innerHTML = items.map(item => `
+        <tr>
+          <td>${item.id}</td>
+          <td>${escapeHtml(item.nombre)}</td>
+          <td>${escapeHtml(item.tipo)}</td>
+          <td>${escapeHtml(item.marca ?? "")}</td>
+          <td>${Number(item.precio ?? 0).toFixed(2)}</td>
+          <td>${Number(item.stock ?? 0)}</td>
+          <td>
+            <div class="actions">
+              <button class="secondary" data-action="edit" data-id="${item.id}">Editar</button>
+              <button class="danger" data-action="delete" data-id="${item.id}">Borrar</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+
+      // Delegación de eventos para botones
+      tbody.querySelectorAll("button[data-action]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const id = btn.getAttribute("data-id");
+          const action = btn.getAttribute("data-action");
+
+          if (action === "edit") {
+            const item = await apiFetch(`${API}/${id}`);
+            cargarEnFormulario(item);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }
+
+          if (action === "delete") {
+            const ok = confirm(`¿Seguro que quieres borrar el componente #${id}?`);
+            if (!ok) return;
+            await borrar(id);
+          }
+        });
+      });
+    }
+
+    async function crear(payload) {
+      await apiFetch(API, { method: "POST", body: JSON.stringify(payload) });
+      await listar();
+      limpiarFormulario();
+    }
+
+    async function actualizar(id, payload) {
+      await apiFetch(`${API}/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+      await listar();
+      limpiarFormulario();
+    }
+
+    async function borrar(id) {
+      try {
+        await apiFetch(`${API}/${id}`, { method: "DELETE" });
+        await listar();
+        // si estabas editando ese id, limpiar
+        if (idEl.value && String(idEl.value) === String(id)) limpiarFormulario();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function getPayloadFromForm() {
+      return {
+        nombre: nombreEl.value.trim(),
+        tipo: tipoEl.value.trim(),
+        marca: marcaEl.value.trim() || null,
+        precio: precioEl.value === "" ? 0 : Number(precioEl.value),
+        stock: stockEl.value === "" ? 0 : Number(stockEl.value),
+      };
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const payload = getPayloadFromForm();
+      if (!payload.nombre || !payload.tipo) {
+        alert("Nombre y Tipo son obligatorios.");
+        return;
+      }
+
+      btnGuardar.disabled = true;
+
+      try {
+        if (!idEl.value) {
+          await crear(payload);
+        } else {
+          await actualizar(idEl.value, payload);
+        }
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btnGuardar.disabled = false;
+      }
+    });
+
+    btnLimpiar.addEventListener("click", limpiarFormulario);
+
+    btnEliminar.addEventListener("click", async () => {
+      if (!idEl.value) return;
+      const ok = confirm(`¿Seguro que quieres borrar el componente #${idEl.value}?`);
+      if (!ok) return;
+      await borrar(idEl.value);
+    });
+
+    btnRefrescar.addEventListener("click", listar);
+
+    // Carga inicial
+    listar();
+    limpiarFormulario();
+  </script>
+</body>
+</html>
