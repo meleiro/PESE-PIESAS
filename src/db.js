@@ -4,12 +4,6 @@
 require("dotenv").config();  
 const { Pool } = require("pg");
 
-const password = String(process.env.DB_PASSWORD ?? process.env.PGPASSWORD ?? "");
-
-console.log("db.js cargado desde:", __filename);
-console.log("DB_USER:", process.env.DB_USER);
-console.log("password typeof:", typeof password, "| len:", password.length);
-
 // Creamos una instancia de Pool con la configuración de conexión
 const pool = new Pool({
 
