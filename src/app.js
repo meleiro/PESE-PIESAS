@@ -78,19 +78,16 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 // GET /componentes
 // -----------------------------------------------------
 // Devuelve el listado completo de componentes
+// Siempre devuelve un array (aunque esté vacío)
 // -----------------------------------------------------
 app.get("/componentes", async (req, res) => {
   try {
-    
-    const result = await repo.getAll();
-    // result.rows contiene el array de filas
-    res.json(result.rows);
-
+    const items = await repo.getAll();
+    res.json(Array.isArray(items) ? items : []);
   } catch (err) {
-    // Error interno del servidor
     res.status(500).json({
-      error: "Error al listar componentes",
-      detalle: err.message
+      error: "Error al obtener componentes",
+      detalle: err.message,
     });
   }
 });
